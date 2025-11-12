@@ -33,6 +33,19 @@ const client = new MongoClient(uri, {
         res.send(result) 
       })
 
+      //api to post users crop post to all crops data
+
+      app.post('/crops', async (req, res)=>{
+        const data = req.body
+        const result = await cropCollection.insertOne(data)
+        res.send(result)
+    })
+      app.get('/crops/:id', async (req, res)=>{
+        const query = req.body;
+        const result = await cropCollection.findOne(query)
+
+      })
+
      
 
 
