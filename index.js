@@ -1,4 +1,4 @@
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 
 
 const express = require('express')
@@ -40,9 +40,11 @@ const client = new MongoClient(uri, {
         const result = await cropCollection.insertOne(data)
         res.send(result)
     })
+    //to getting crop details by specific id
       app.get('/crops/:id', async (req, res)=>{
-        const query = req.body;
-        const result = await cropCollection.findOne(query)
+        const id = req.params.id
+        const result = await cropCollection.findOne({_id: new ObjectId(id)})
+        res.send(result)
 
       })
 
