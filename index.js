@@ -29,7 +29,7 @@ async function run() {
     //api to get all the crops to show them allas cards
     app.get("/crops", async (req, res) => {
       const cursor = cropCollection.find();
-      const result = await cursor.toArray();
+      const result = await cursor.toArray(); 
       res.send(result);
     });
 
@@ -46,7 +46,7 @@ async function run() {
       const result = await cropCollection.findOne({ _id: new ObjectId(id) });
       res.send(result);
     });
-
+  // to get all the posts with the user
     app.get("/mypost", async (req, res) => {
       const email = req.query.email;
       let query = {};
@@ -67,6 +67,24 @@ async function run() {
       const result = await cropCollection.deleteOne(query)
       res.send(result)
     })
+    // to update the data from the modal
+    // app.patch('/crops/:id', async(req, res)=> {
+    //   const id = req.params.id;
+    //   const query = {_id: new ObjectId(id)}
+    //   const updatedUser = req.body
+    //   console.log('after update', id, updatedUser)
+    //   const update = {
+    //     $set: updatedUser
+    //   }
+    //   const options = {}
+    //   const result =await cropCollection.updateOne(query, update, options)
+    //   res.send(result)
+    // })
+    // sending api to check one user cant send more than 1 interest
+
+
+
+
 
     app.put('/crops/:id', async (req, res) =>{
       const id = req.params.id
@@ -76,6 +94,40 @@ async function run() {
         $set: data
       }
       const result = await cropCollection.updateOne(query,updatedata)
+      res.send(result)
+    })
+
+    //to post interest object to the interest array 
+    app.post('/crops/interest/:cropId', async(req, res)=>{
+      const id = req.params.cropId
+      const interestId = new ObjectId()
+      const interest = req.body;
+      const newInterest = {_id: interestId, ...interest}
+      console.log(newInterest)
+      const result = await cropCollection.updateOne({
+        _id: new ObjectId(id)
+      }, {
+        $push: {interests: newInterest}
+      })
+      res.send(result)
+    })
+    // to show all interest by an user 
+    app.get('/interests', async (req, res)=>{
+      const userEmail = req.query.email;
+      const crops = await cropCollection.find({'interests.userEmail': userEmail}).toArray()
+      const userinterest = []
+      crops.forEach((crop)=> {
+        const matchedInt = crop.interests.filter((u)=> u.userEmail === userEmail)
+        matchedInt.forEach((interest)=>{
+          userinterest.push({
+            ...interest,
+            cropName: crop.name,
+            cropId: crop._id,
+            cropOwner: crop.owner
+          })
+        })
+      })
+      res.send({interests: userinterest})
     })
 
     // Send a ping to confirm a successful connection
