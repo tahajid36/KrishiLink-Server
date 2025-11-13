@@ -3,9 +3,9 @@ const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const express = require("express");
 const cors = require("cors");
 const app = express();
-require('dotenv').config();
+require("dotenv").config();
 const port = process.env.PORT || 1000;
-const uri =`mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@bruce.s9kj5xo.mongodb.net/?appName=Bruce`;
+const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@bruce.s9kj5xo.mongodb.net/?appName=Bruce`;
 
 // middlewares
 app.use(cors());
@@ -22,14 +22,14 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
-    await client.connect();
+    // await client.connect();
     const db = client.db("krishilink");
     const cropCollection = db.collection("crops");
 
     //api to get all the crops to show them allas cards
     app.get("/crops", async (req, res) => {
       const cursor = cropCollection.find();
-      const result = await cursor.toArray(); 
+      const result = await cursor.toArray();
       res.send(result);
     });
 
@@ -46,7 +46,7 @@ async function run() {
       const result = await cropCollection.findOne({ _id: new ObjectId(id) });
       res.send(result);
     });
-  // to get all the posts with the user
+    // to get all the posts with the user
     app.get("/mypost", async (req, res) => {
       const email = req.query.email;
       let query = {};
@@ -61,14 +61,23 @@ async function run() {
       });
     });
 
+    app.delete("/crops/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await cropCollection.deleteOne(query);
+      res.send(result);
+    });
 
 
-    app.delete('/crops/:id',async (req, res)=>{
-      const id = req.params.id
-      const query = {_id: new ObjectId(id)}
-      const result = await cropCollection.deleteOne(query)
-      res.send(result)
-    })
+    app.get("/latestcrop", async (req, res) => {
+      const result = await cropCollection
+        .find()
+        .sort({ created_at: -1 })
+        .limit(6)
+        .toArray();
+
+      res.send(result);
+    });
     // to update the data from the modal
     // app.patch('/crops/:id', async(req, res)=> {
     //   const id = req.params.id;
@@ -84,91 +93,103 @@ async function run() {
     // })
     // sending api to check one user cant send more than 1 interest
 
-
-
-
-
-    app.put('/crops/:id', async (req, res) =>{
-      const id = req.params.id
-      const data = req.body
-      const query = {_id: new ObjectId(id)}
+    app.put("/crops/:id", async (req, res) => {
+      const id = req.params.id;
+      const data = req.body;
+      const query = { _id: new ObjectId(id) };
       const updatedata = {
-        $set: data
-      }
-      const result = await cropCollection.updateOne(query,updatedata)
-      res.send(result)
-    })
+        $set: data,
+      };
+      const result = await cropCollection.updateOne(query, updatedata);
+      res.send(result);
+    });
 
-    //to post interest object to the interest array 
-    app.post('/crops/interest/:cropId', async(req, res)=>{
-      const id = req.params.cropId
-      const interestId = new ObjectId()
+    //to post interest object to the interest array
+    app.post("/crops/interest/:cropId", async (req, res) => {
+      const id = req.params.cropId;
+      const interestId = new ObjectId();
       const interest = req.body;
-      const newInterest = {_id: interestId, ...interest}
-      console.log(newInterest)
-      const result = await cropCollection.updateOne({
-        _id: new ObjectId(id)
-      }, {
-        $push: {interests: newInterest}
-      })
-      res.send(result)
-    })
-    // to show all interest by an user 
-    app.get('/interests', async (req, res)=>{
+      const newInterest = { _id: interestId, ...interest };
+      console.log(newInterest);
+      const result = await cropCollection.updateOne(
+        {
+          _id: new ObjectId(id),
+        },
+        {
+          $push: { interests: newInterest },
+        }
+      );
+      res.send(result);
+    });
+    // to show all interest by an user
+    app.get("/interests", async (req, res) => {
       const userEmail = req.query.email;
-      const crops = await cropCollection.find({'interests.userEmail': userEmail}).toArray()
-      const userinterest = []
-      crops.forEach((crop)=> {
-        const matchedInt = crop.interests.filter((u)=> u.userEmail === userEmail)
-        matchedInt.forEach((interest)=>{
+      const crops = await cropCollection
+        .find({ "interests.userEmail": userEmail })
+        .toArray();
+      const userinterest = [];
+      crops.forEach((crop) => {
+        const matchedInt = crop.interests.filter(
+          (u) => u.userEmail === userEmail
+        );
+        matchedInt.forEach((interest) => {
           userinterest.push({
             ...interest,
             cropName: crop.name,
             cropId: crop._id,
-            cropOwner: crop.owner
-          })
-        })
-      })
-      res.send({interests: userinterest})
-    })
+            cropOwner: crop.owner,
+          });
+        });
+      });
+      res.send({ interests: userinterest });
+    });
 
     //to do the accept and reject btn task
-    app.put('/crops/:cropId/interest/:interestId', async(req, res)=> {
-      const {cropId, interestId} = req.params
-      const {status} = req.body
-      if(!['accepted', 'rejected'].includes(status)){
-        return res.status(400).send({message: 'Invalid'})
+    app.put("/crops/:cropId/interest/:interestId", async (req, res) => {
+      const { cropId, interestId } = req.params;
+      const { status } = req.body;
+      if (!["accepted", "rejected"].includes(status)) {
+        return res.status(400).send({ message: "Invalid" });
       }
-      const query = {_id: new ObjectId(cropId), 'interests._id': new ObjectId(interestId)}
+      const query = {
+        _id: new ObjectId(cropId),
+        "interests._id": new ObjectId(interestId),
+      };
       const update = {
-        $set: {'interests.$.status': status}
-      }
-      const result = await cropCollection.updateOne(query, update)
+        $set: { "interests.$.status": status },
+      };
+      const result = await cropCollection.updateOne(query, update);
 
-      if(status === 'accepted' && result.modifiedCount > 0){
-        const crop = await cropCollection.findOne({_id: new ObjectId(cropId)})
+      if (status === "accepted" && result.modifiedCount > 0) {
+        const crop = await cropCollection.findOne({
+          _id: new ObjectId(cropId),
+        });
         const acceptedInterest = crop.interests.find(
-          (int) => int._id.toString()=== interestId
-        )
-        if(acceptedInterest){
-          const currrentQuantity = Number(crop.quantity)
-          const reduceAmount = Number(acceptedInterest.quantity)
-          const newQuantity = Math.max(currrentQuantity - reduceAmount, 0)
+          (int) => int._id.toString() === interestId
+        );
+        if (acceptedInterest) {
+          const currrentQuantity = Number(crop.quantity);
+          const reduceAmount = Number(acceptedInterest.quantity);
+          const newQuantity = Math.max(currrentQuantity - reduceAmount, 0);
 
           await cropCollection.updateOne(
-            {_id: new ObjectId(cropId)},
+            { _id: new ObjectId(cropId) },
             {
-              $set: {quantity: newQuantity}
+              $set: { quantity: newQuantity },
             }
-          )
+          );
         }
-        
       }
-      res.send(result)
-    })
+      res.send(result);
+    });
 
-
-
+    app.get("/searchcrop", async (req, res) => {
+      const searchtext = req.query.search;
+      const result = await cropCollection
+        .find({ name: { $regex: searchtext, $options: "i" } })
+        .toArray();
+      res.send(result);
+    });
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
