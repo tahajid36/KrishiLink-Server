@@ -3,9 +3,9 @@ const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const express = require("express");
 const cors = require("cors");
 const app = express();
+require('dotenv').config();
 const port = process.env.PORT || 1000;
-const uri =
-  "mongodb+srv://bruce:xI9agTAQznbVVvYl@bruce.s9kj5xo.mongodb.net/?appName=Bruce";
+const uri =`mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@bruce.s9kj5xo.mongodb.net/?appName=Bruce`;
 
 // middlewares
 app.use(cors());
@@ -60,6 +60,8 @@ async function run() {
         result,
       });
     });
+
+
 
     app.delete('/crops/:id',async (req, res)=>{
       const id = req.params.id
@@ -129,6 +131,44 @@ async function run() {
       })
       res.send({interests: userinterest})
     })
+
+    //to do the accept and reject btn task
+    app.put('/crops/:cropId/interest/:interestId', async(req, res)=> {
+      const {cropId, interestId} = req.params
+      const {status} = req.body
+      if(!['accepted', 'rejected'].includes(status)){
+        return res.status(400).send({message: 'Invalid'})
+      }
+      const query = {_id: new ObjectId(cropId), 'interests._id': new ObjectId(interestId)}
+      const update = {
+        $set: {'interests.$.status': status}
+      }
+      const result = await cropCollection.updateOne(query, update)
+
+      if(status === 'accepted' && result.modifiedCount > 0){
+        const crop = await cropCollection.findOne({_id: new ObjectId(cropId)})
+        const acceptedInterest = crop.interests.find(
+          (int) => int._id.toString()=== interestId
+        )
+        if(acceptedInterest){
+          const currrentQuantity = Number(crop.quantity)
+          const reduceAmount = Number(acceptedInterest.quantity)
+          const newQuantity = Math.max(currrentQuantity - reduceAmount, 0)
+
+          await cropCollection.updateOne(
+            {_id: new ObjectId(cropId)},
+            {
+              $set: {quantity: newQuantity}
+            }
+          )
+        }
+        
+      }
+      res.send(result)
+    })
+
+
+
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
